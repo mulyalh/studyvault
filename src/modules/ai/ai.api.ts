@@ -106,7 +106,9 @@ export const generateSummaryFn = createServerFn({ method: "POST" })
 			},
 		});
 
-		const apiKey = process.env.OPENAI_API_KEY || "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";
+		const apiKey =
+			process.env.OPENAI_API_KEY ||
+			"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";
 		if (!apiKey) {
 			await context.db.aISummary.update({
 				where: { noteId: data.noteId },

@@ -1,4 +1,5 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
+import { requireSessionFn } from "@/modules/auth/auth.api";
 import {
 	getTrashNotesFn,
 	restoreNoteFn,
@@ -8,6 +9,12 @@ import { Trash2, RotateCcw, Info, FileText } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 
 export const Route = createFileRoute("/_app/app/trash")({
+	beforeLoad: async () => {
+		const session = await requireSessionFn();
+		if (!session) {
+			throw redirect({ to: "/login" });
+		}
+	},
 	loader: async () => {
 		const trashNotes = await getTrashNotesFn();
 		return { trashNotes };
