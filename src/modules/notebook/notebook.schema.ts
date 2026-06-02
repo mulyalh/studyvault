@@ -11,6 +11,7 @@ export const updateNotebookSchema = z.object({
 
 export const deleteNotebookSchema = z.object({
 	id: z.string().uuid(),
+	confirmDelete: z.boolean().optional(),
 });
 
 export const restoreNotebookSchema = z.object({

@@ -25,6 +25,12 @@ interface SidebarProps {
 	notes: Note[];
 	onCreateNote: (notebookId?: string | null) => void;
 	onCreateNotebook?: () => void;
+	onRenameNotebook: (id: string, newName: string) => Promise<void>;
+	onDeleteNotebook: (
+		id: string,
+		noteCount: number,
+		notebookName: string,
+	) => void;
 	onSearch?: (query: string) => void;
 	searchResults?: Note[];
 	isCollapsed: boolean;
@@ -40,6 +46,8 @@ export function Sidebar({
 	notes,
 	onCreateNote,
 	onCreateNotebook,
+	onRenameNotebook,
+	onDeleteNotebook,
 	onSearch,
 	searchResults,
 	isCollapsed,
@@ -127,6 +135,8 @@ export function Sidebar({
 				expandedNotebooks={expandedNotebooks}
 				onToggleNotebook={toggleNotebook}
 				onCreateNote={onCreateNote}
+				onRenameNotebook={onRenameNotebook}
+				onDeleteNotebook={onDeleteNotebook}
 			/>
 
 			<SidebarFooter user={user} />
