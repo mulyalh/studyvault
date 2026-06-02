@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import {
 	ChevronDown,
@@ -37,6 +37,12 @@ interface SidebarFileTreeProps {
 	expandedNotebooks: Set<string>;
 	onToggleNotebook: (notebookId: string) => void;
 	onCreateNote: (notebookId?: string | null) => void;
+	onRenameNotebook: (id: string, newName: string) => Promise<void>;
+	onDeleteNotebook: (
+		id: string,
+		noteCount: number,
+		notebookName: string,
+	) => void;
 }
 
 export function SidebarFileTree({
@@ -46,7 +52,44 @@ export function SidebarFileTree({
 	expandedNotebooks,
 	onToggleNotebook,
 	onCreateNote,
+	onRenameNotebook,
+	onDeleteNotebook,
 }: SidebarFileTreeProps) {
+	const [renamingNotebookId, setRenamingNotebookId] = useState<string | null>(
+		null,
+	);
+	const [renamingValue, setRenamingValue] = useState("");
+	const renameInputRef = useRef<HTMLInputElement>(null);
+
+	useEffect(() => {
+		if (renamingNotebookId && renameInputRef.current) {
+			renameInputRef.current.focus();
+			renameInputRef.current.select();
+		}
+	}, [renamingNotebookId]);
+
+	const startRenaming = useCallback((id: string, currentName: string) => {
+		setRenamingNotebookId(id);
+		setRenamingValue(currentName);
+	}, []);
+
+	const confirmRename = useCallback(
+		async (id: string) => {
+			const trimmed = renamingValue.trim();
+			if (trimmed && trimmed !== notebooks.find((n) => n.id === id)?.name) {
+				await onRenameNotebook(id, trimmed);
+			}
+			setRenamingNotebookId(null);
+			setRenamingValue("");
+		},
+		[renamingValue, notebooks, onRenameNotebook],
+	);
+
+	const cancelRename = useCallback(() => {
+		setRenamingNotebookId(null);
+		setRenamingValue("");
+	}, []);
+
 	// Sort function for notes
 	const sortNoteItems = useCallback(
 		(items: Note[]) => {
@@ -158,9 +201,35 @@ export function SidebarFileTree({
 									)}
 								</button>
 								<Folder className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-								<span className="flex-1 text-xs font-medium text-foreground truncate text-left">
-									{notebook.name}
-								</span>
+								{renamingNotebookId === notebook.id ? (
+									<input
+										ref={renameInputRef}
+										type="text"
+										value={renamingValue}
+										onChange={(e) => setRenamingValue(e.target.value)}
+										onKeyDown={(e) => {
+											if (e.key === "Enter") {
+												e.preventDefault();
+												confirmRename(notebook.id);
+											} else if (e.key === "Escape") {
+												cancelRename();
+											}
+										}}
+										onBlur={() => cancelRename()}
+										className="flex-1 text-xs font-medium bg-zinc-100 dark:bg-zinc-800 border border-border rounded px-1.5 py-0.5 text-foreground outline-none focus:ring-1 focus:ring-primary/50 min-w-0"
+									/>
+								) : (
+									<span
+										role="button"
+										tabIndex={0}
+										className="flex-1 text-xs font-medium text-foreground truncate text-left cursor-pointer"
+										onDoubleClick={() =>
+											startRenaming(notebook.id, notebook.name)
+										}
+									>
+										{notebook.name}
+									</span>
+								)}
 								<span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-zinc-200 dark:bg-zinc-800 text-muted-foreground group-hover:bg-zinc-300 dark:group-hover:bg-zinc-700 transition-colors">
 									{notebook.notes.length}
 								</span>
@@ -186,26 +255,18 @@ export function SidebarFileTree({
 									</DropdownMenuTrigger>
 									<DropdownMenuContent align="end" className="w-40">
 										<DropdownMenuItem
-											onClick={() => {
-												// TODO: Implement rename notebook
-												console.log("Rename notebook:", notebook.id);
-											}}
+											onClick={() => startRenaming(notebook.id, notebook.name)}
 										>
 											Rename
 										</DropdownMenuItem>
 										<DropdownMenuItem
-											onClick={() => {
-												// TODO: Implement edit notebook
-												console.log("Edit notebook:", notebook.id);
-											}}
-										>
-											Edit
-										</DropdownMenuItem>
-										<DropdownMenuItem
-											onClick={() => {
-												// TODO: Implement delete notebook
-												console.log("Delete notebook:", notebook.id);
-											}}
+											onClick={() =>
+												onDeleteNotebook(
+													notebook.id,
+													notebook.notes.length,
+													notebook.name,
+												)
+											}
 											className="text-red-600 dark:text-red-400"
 										>
 											Delete
