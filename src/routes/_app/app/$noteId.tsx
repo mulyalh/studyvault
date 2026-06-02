@@ -4,6 +4,7 @@ import {
 	useNavigate,
 	useRouter,
 } from "@tanstack/react-router";
+import { requireSessionFn } from "@/modules/auth/auth.api";
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
 	getNoteByIdFn,
@@ -16,6 +17,8 @@ import {
 	CheckCircle2,
 	Loader2,
 	AlertCircle,
+	BookOpen,
+	HelpCircle,
 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import { Editor } from "@/modules/note/components/editor";
@@ -71,6 +74,12 @@ function getWordCount(text: string): number {
 }
 
 export const Route = createFileRoute("/_app/app/$noteId")({
+	beforeLoad: async () => {
+		const session = await requireSessionFn();
+		if (!session) {
+			throw redirect({ to: "/login" });
+		}
+	},
 	loader: async ({ params }) => {
 		const note = await getNoteByIdFn({ data: { id: params.noteId } });
 		if (!note) {
@@ -304,15 +313,34 @@ function RouteComponent() {
 	return (
 		<div className="flex-1 flex h-full overflow-hidden bg-background">
 			<div className="flex-1 flex flex-col h-full border-r border-border">
+				{/* Breadcrumb (US-ED-NAV-01) + Action Buttons (US-ED-NAV-03) */}
 				<header className="h-14 border-b border-border px-6 flex items-center justify-between bg-card">
-					<div className="flex items-center gap-2 text-muted-foreground text-xs font-medium min-w-0">
+					<div className="flex items-center gap-1.5 text-muted-foreground text-xs font-medium min-w-0">
 						<FileText className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
+						{note.notebook ? (
+							<>
+								<button
+									type="button"
+									onClick={() => {
+										window.dispatchEvent(
+											new CustomEvent("focus-notebook", {
+												detail: note.notebook.id,
+											}),
+										);
+									}}
+									className="hover:text-foreground transition-colors cursor-pointer truncate max-w-28"
+								>
+									{note.notebook.name}
+								</button>
+								<span className="text-muted-foreground/40 select-none">›</span>
+							</>
+						) : null}
 						<span className="truncate max-w-45 font-semibold text-foreground">
 							{title || "Untitled"}
 						</span>
 					</div>
 
-					<div className="flex items-center gap-3">
+					<div className="flex items-center gap-1.5">
 						<div className="text-[11px] flex items-center h-8">
 							{saveStatus === "saved" && (
 								<span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-500 font-medium animate-in fade-in duration-300">
@@ -339,15 +367,43 @@ function RouteComponent() {
 							)}
 						</div>
 
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={handleSoftDelete}
-							className="text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-lg w-8 h-8 flex items-center justify-center transition-colors cursor-pointer"
-							title="Move to Trash"
-						>
-							<Trash2 className="w-3.5 h-3.5" />
-						</Button>
+						<div className="flex items-center gap-1">
+							<Button
+								variant="ghost"
+								size="icon-sm"
+								disabled={wordCount < 150}
+								title={
+									wordCount < 150
+										? "Minimal 150 kata untuk menggunakan fitur AI"
+										: "Generate Flashcard"
+								}
+								className="text-muted-foreground hover:text-foreground hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+							>
+								<BookOpen className="w-3.5 h-3.5" />
+							</Button>
+							<Button
+								variant="ghost"
+								size="icon-sm"
+								disabled={wordCount < 150}
+								title={
+									wordCount < 150
+										? "Minimal 150 kata untuk menggunakan fitur AI"
+										: "Generate Review Question"
+								}
+								className="text-muted-foreground hover:text-foreground hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+							>
+								<HelpCircle className="w-3.5 h-3.5" />
+							</Button>
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={handleSoftDelete}
+								className="text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-lg w-8 h-8 flex items-center justify-center transition-colors cursor-pointer"
+								title="Move to Trash"
+							>
+								<Trash2 className="w-3.5 h-3.5" />
+							</Button>
+						</div>
 					</div>
 				</header>
 
@@ -364,6 +420,19 @@ function RouteComponent() {
 						onChange={(newContent) => handleChange(title, newContent)}
 						placeholder="Start writing..."
 					/>
+				</div>
+
+				{/* Stats Bar (US-ED-NAV-02) */}
+				<div className="h-8 border-t border-border px-6 flex items-center justify-end gap-3 text-[11px] text-muted-foreground bg-card shrink-0">
+					<span>0 backlinks</span>
+					<span className="text-muted-foreground/30">·</span>
+					<span>
+						{wordCount} {wordCount === 1 ? "word" : "words"}
+					</span>
+					<span className="text-muted-foreground/30">·</span>
+					<span>{content.length} chars</span>
+					<span className="text-muted-foreground/30">·</span>
+					<span>{Math.ceil(wordCount / 200)} min read</span>
 				</div>
 			</div>
 

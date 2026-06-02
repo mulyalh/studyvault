@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { SidebarHeader } from "./sidebar-header";
 import { SidebarActionBar } from "./sidebar-action-bar";
 import { SidebarFileTree } from "./sidebar-file-tree";
@@ -65,6 +65,41 @@ export function Sidebar({
 
 	const collapseAll = useCallback(() => {
 		setExpandedNotebooks(new Set());
+	}, []);
+
+	useEffect(() => {
+		const handler = (e: CustomEvent<string>) => {
+			const notebookId = e.detail;
+			setExpandedNotebooks((prev) => {
+				if (prev.has(notebookId)) return prev;
+				return new Set([...prev, notebookId]);
+			});
+			requestAnimationFrame(() => {
+				const el = document.querySelector(`[data-notebook-id="${notebookId}"]`);
+				if (el) {
+					el.scrollIntoView({ behavior: "smooth", block: "center" });
+					el.classList.add(
+						"ring-2",
+						"ring-primary/40",
+						"rounded-lg",
+						"transition-all",
+						"duration-700",
+					);
+					setTimeout(() => {
+						el.classList.remove(
+							"ring-2",
+							"ring-primary/40",
+							"rounded-lg",
+							"transition-all",
+							"duration-700",
+						);
+					}, 2000);
+				}
+			});
+		};
+		window.addEventListener("focus-notebook", handler as EventListener);
+		return () =>
+			window.removeEventListener("focus-notebook", handler as EventListener);
 	}, []);
 
 	if (isCollapsed) {

@@ -219,6 +219,14 @@ export const getNoteByIdFn = createServerFn({ method: "GET" })
 				id: data.id,
 				userId: session.user.id,
 			},
+			include: {
+				notebook: {
+					select: {
+						id: true,
+						name: true,
+					},
+				},
+			},
 		});
 
 		return note;

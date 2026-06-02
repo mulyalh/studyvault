@@ -142,7 +142,10 @@ export function SidebarFileTree({
 				<nav className="space-y-1">
 					{sortedNotebooks.map((notebook) => (
 						<div key={notebook.id}>
-							<div className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors group">
+							<div
+								data-notebook-id={notebook.id}
+								className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors group"
+							>
 								<button
 									type="button"
 									onClick={() => onToggleNotebook(notebook.id)}
