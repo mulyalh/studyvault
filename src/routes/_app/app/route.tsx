@@ -9,6 +9,8 @@ import { getNotesFn, searchNotesFn } from "@/modules/note/note.api";
 import {
 	getNotebooksFn,
 	createNotebookFn,
+	updateNotebookFn,
+	deleteNotebookFn,
 } from "@/modules/notebook/notebook.api";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Sidebar } from "@/shared/components/sidebar/sidebar";
@@ -22,6 +24,31 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function AppSkeleton() {
+	return (
+		<div className="flex h-screen w-screen overflow-hidden bg-background">
+			{/* Sidebar skeleton */}
+			<div className="w-60 border-r border-border p-3 space-y-3 shrink-0">
+				<Skeleton className="h-8 w-full" />
+				<Skeleton className="h-4 w-3/4" />
+				<div className="space-y-2 pt-4">
+					{Array.from({ length: 6 }).map((_, i) => (
+						<Skeleton key={i} className="h-7 w-full" />
+					))}
+				</div>
+			</div>
+			{/* Content skeleton */}
+			<div className="flex-1 p-8 space-y-4">
+				<Skeleton className="h-6 w-1/3" />
+				<Skeleton className="h-4 w-full" />
+				<Skeleton className="h-4 w-5/6" />
+				<Skeleton className="h-4 w-2/3" />
+			</div>
+		</div>
+	);
+}
 
 export const Route = createFileRoute("/_app/app")({
 	beforeLoad: async () => {
@@ -39,6 +66,7 @@ export const Route = createFileRoute("/_app/app")({
 		]);
 		return { notes, notebooks };
 	},
+	pendingComponent: AppSkeleton,
 	component: RouteComponent,
 });
 
@@ -62,6 +90,14 @@ function RouteComponent() {
 	const [isCreateNotebookOpen, setIsCreateNotebookOpen] = useState(false);
 	const [notebookName, setNotebookName] = useState("");
 	const [isCreatingNotebook, setIsCreatingNotebook] = useState(false);
+
+	// Notebook delete confirmation state
+	const [deleteConfirm, setDeleteConfirm] = useState<{
+		notebookId: string;
+		noteCount: number;
+		notebookName: string;
+	} | null>(null);
+	const [isDeletingNotebook, setIsDeletingNotebook] = useState(false);
 
 	// Search state
 	const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -103,6 +139,59 @@ function RouteComponent() {
 			handleSubmitCreateNotebook();
 		} else if (e.key === "Escape") {
 			setIsCreateNotebookOpen(false);
+		}
+	};
+
+	const handleRenameNotebook = async (id: string, newName: string) => {
+		if (!newName.trim()) return;
+		try {
+			const updated = await updateNotebookFn({
+				data: { id, name: newName.trim() },
+			});
+			setNotebooks((prev) =>
+				prev.map((nb) => (nb.id === id ? { ...nb, name: updated.name } : nb)),
+			);
+		} catch (error) {
+			console.error("Failed to rename notebook:", error);
+		}
+	};
+
+	const handleDeleteNotebook = async (
+		id: string,
+		noteCount: number,
+		notebookName: string,
+	) => {
+		if (noteCount === 0) {
+			try {
+				await deleteNotebookFn({ data: { id, confirmDelete: true } });
+				setNotebooks((prev) => prev.filter((nb) => nb.id !== id));
+			} catch (error) {
+				console.error("Failed to delete notebook:", error);
+			}
+			return;
+		}
+
+		setDeleteConfirm({ notebookId: id, noteCount, notebookName });
+	};
+
+	const handleConfirmDelete = async () => {
+		if (!deleteConfirm) return;
+		setIsDeletingNotebook(true);
+		try {
+			await deleteNotebookFn({
+				data: {
+					id: deleteConfirm.notebookId,
+					confirmDelete: true,
+				},
+			});
+			setNotebooks((prev) =>
+				prev.filter((nb) => nb.id !== deleteConfirm.notebookId),
+			);
+			setDeleteConfirm(null);
+		} catch (error) {
+			console.error("Failed to delete notebook:", error);
+		} finally {
+			setIsDeletingNotebook(false);
 		}
 	};
 
@@ -152,6 +241,8 @@ function RouteComponent() {
 				notes={notes}
 				onCreateNote={handleCreateNote}
 				onCreateNotebook={handleCreateNotebook}
+				onRenameNotebook={handleRenameNotebook}
+				onDeleteNotebook={handleDeleteNotebook}
 				onSearch={handleSearchChange}
 				searchResults={searchResults}
 				isCollapsed={isSidebarCollapsed}
@@ -210,6 +301,40 @@ function RouteComponent() {
 								{isCreatingNotebook ? "Creating..." : "Create"}
 							</Button>
 						</div>
+					</div>
+				</DialogContent>
+			</Dialog>
+
+			{/* Delete Notebook Confirmation Dialog */}
+			<Dialog
+				open={deleteConfirm !== null}
+				onOpenChange={(open) => {
+					if (!open) setDeleteConfirm(null);
+				}}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Hapus Notebook</DialogTitle>
+						<DialogDescription>
+							Folder ini berisi {deleteConfirm?.noteCount ?? 0} catatan. Semua
+							catatan akan dipindahkan ke Trash.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="flex justify-end gap-2">
+						<Button
+							variant="outline"
+							onClick={() => setDeleteConfirm(null)}
+							disabled={isDeletingNotebook}
+						>
+							Batal
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={handleConfirmDelete}
+							disabled={isDeletingNotebook}
+						>
+							{isDeletingNotebook ? "Menghapus..." : "Hapus"}
+						</Button>
 					</div>
 				</DialogContent>
 			</Dialog>

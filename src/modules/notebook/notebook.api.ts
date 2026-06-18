@@ -74,17 +74,35 @@ export const deleteNotebookFn = createServerFn({ method: "POST" })
 
 		const existing = await context.db.notebook.findFirst({
 			where: { id: data.id, userId: session.user.id },
+			include: {
+				notes: {
+					where: { deletedAt: null },
+					select: { id: true },
+				},
+			},
 		});
 
 		if (!existing) {
 			throw new Error("Notebook not found or access denied");
 		}
 
-		await context.db.notebook.update({
+		const noteCount = existing.notes.length;
+
+		if (noteCount > 0 && !data.confirmDelete) {
+			throw new Error(
+				`Folder ini berisi ${noteCount} catatan. Semua catatan akan dipindahkan ke Trash.`,
+			);
+		}
+
+		if (noteCount > 0) {
+			await context.db.note.updateMany({
+				where: { notebookId: data.id, deletedAt: null },
+				data: { deletedAt: new Date() },
+			});
+		}
+
+		await context.db.notebook.delete({
 			where: { id: data.id },
-			data: {
-				deletedAt: new Date(),
-			},
 		});
 
 		return { success: true };

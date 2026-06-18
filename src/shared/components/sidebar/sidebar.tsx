@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { SidebarHeader } from "./sidebar-header";
 import { SidebarActionBar } from "./sidebar-action-bar";
 import { SidebarFileTree } from "./sidebar-file-tree";
@@ -25,6 +25,12 @@ interface SidebarProps {
 	notes: Note[];
 	onCreateNote: (notebookId?: string | null) => void;
 	onCreateNotebook?: () => void;
+	onRenameNotebook: (id: string, newName: string) => Promise<void>;
+	onDeleteNotebook: (
+		id: string,
+		noteCount: number,
+		notebookName: string,
+	) => void;
 	onSearch?: (query: string) => void;
 	searchResults?: Note[];
 	isCollapsed: boolean;
@@ -40,6 +46,8 @@ export function Sidebar({
 	notes,
 	onCreateNote,
 	onCreateNotebook,
+	onRenameNotebook,
+	onDeleteNotebook,
 	onSearch,
 	searchResults,
 	isCollapsed,
@@ -67,6 +75,41 @@ export function Sidebar({
 		setExpandedNotebooks(new Set());
 	}, []);
 
+	useEffect(() => {
+		const handler = (e: CustomEvent<string>) => {
+			const notebookId = e.detail;
+			setExpandedNotebooks((prev) => {
+				if (prev.has(notebookId)) return prev;
+				return new Set([...prev, notebookId]);
+			});
+			requestAnimationFrame(() => {
+				const el = document.querySelector(`[data-notebook-id="${notebookId}"]`);
+				if (el) {
+					el.scrollIntoView({ behavior: "smooth", block: "center" });
+					el.classList.add(
+						"ring-2",
+						"ring-primary/40",
+						"rounded-lg",
+						"transition-all",
+						"duration-700",
+					);
+					setTimeout(() => {
+						el.classList.remove(
+							"ring-2",
+							"ring-primary/40",
+							"rounded-lg",
+							"transition-all",
+							"duration-700",
+						);
+					}, 2000);
+				}
+			});
+		};
+		window.addEventListener("focus-notebook", handler as EventListener);
+		return () =>
+			window.removeEventListener("focus-notebook", handler as EventListener);
+	}, []);
+
 	if (isCollapsed) {
 		return null;
 	}
@@ -92,6 +135,8 @@ export function Sidebar({
 				expandedNotebooks={expandedNotebooks}
 				onToggleNotebook={toggleNotebook}
 				onCreateNote={onCreateNote}
+				onRenameNotebook={onRenameNotebook}
+				onDeleteNotebook={onDeleteNotebook}
 			/>
 
 			<SidebarFooter user={user} />
